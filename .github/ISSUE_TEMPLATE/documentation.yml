@@ -1,0 +1,37 @@
+name: Documentation
+description: Request a docs addition or correction.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: File path or section.
+      placeholder: "docs/api/testing.md"
+    validations:
+      required: true
+
+  - type: textarea
+    id: gap
+    attributes:
+      label: Documentation gap
+      description: What is missing, unclear, or outdated?
+    validations:
+      required: true
+
+  - type: textarea
+    id: target
+    attributes:
+      label: Target audience and expected outcome
+      description: Who needs this and what should they be able to do after reading?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed content
+      description: Optional draft or bullet points.
+    validations:
+      required: false

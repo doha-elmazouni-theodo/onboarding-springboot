@@ -1,0 +1,9 @@
+package org.junit.jupiter.api;
+
+import org.jspecify.annotations.Nullable;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+
+public class Assertions {
+    @EnsuresNonNull("#1")
+    public static void assertNotNull(@Nullable Object actual, String message);
+}

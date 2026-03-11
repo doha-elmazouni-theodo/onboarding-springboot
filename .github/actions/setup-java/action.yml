@@ -1,0 +1,24 @@
+name: 'Setup Java'
+description: 'Setup Java environment for Maven builds'
+
+inputs:
+  project-directory:
+    description: 'Path to the project directory'
+    required: true
+
+outputs:
+  cache-hit:
+    description: 'A boolean value to indicate an exact match was found for the primary key'
+    value: ${{ steps.setup-java.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Java
+      id: setup-java
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+      with:
+        distribution: 'temurin'
+        # TODO: Configure Renovate to update .tool-versions file
+        java-version-file: ${{ inputs.project-directory }}/.tool-versions
+        cache: 'maven'

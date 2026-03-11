@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+        False positive
+        ]]></notes>
+        <filePath regex="true">.*</filePath>
+        <cve>CVE-2018-1258</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+        CVE-2022-0839 affects Liquibase versions <= 4.8.0.
+        The Spring Boot Liquibase starters resolve Liquibase 5.0+, so this is a scanner version-mismatch false positive.
+        ]]></notes>
+        <filePath regex="true">.*\b(spring-boot-liquibase|spring-boot-starter-liquibase)-.*\.jar</filePath>
+        <cve>CVE-2022-0839</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+        False positive for spring-boot-devtools.
+        ]]></notes>
+        <filePath regex="true">.*\bspring-boot-devtools-.*\.jar</filePath>
+        <cve>CVE-2022-31691</cve>
+    </suppress>
+</suppressions>

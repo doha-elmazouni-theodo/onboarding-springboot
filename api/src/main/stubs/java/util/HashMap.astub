@@ -1,0 +1,7 @@
+package java.util;
+
+import jakarta.annotation.Nullable;
+
+public class HashMap<K,V> {
+    public @Nullable V put(@Nullable K key, @Nullable V value);
+}

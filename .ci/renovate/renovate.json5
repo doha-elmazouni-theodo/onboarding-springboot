@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "globalExtends": [
+    "config:best-practices",
+    "group:all",
+    "group:allNonMajor",
+    ":rebaseStalePrs",
+    ":automergeRequireAllStatusChecks",
+    ":enableVulnerabilityAlerts",
+    ":semanticCommitTypeAll(chore)",
+  ],
+  "onboarding": false,
+  "dependencyDashboardTitle": "[Renovate] Dependency Dashboard",
+  "gitAuthor": "Renovate Bot <renovate-bot@noreply.internal>",
+  "platformAutomerge": false,
+  "minimumReleaseAge": "5 days",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 5,
+  "separateMinorPatch": true,
+  "requireConfig": "ignored",
+  "ignorePaths": [".gitlab-ci.yml"],
+  "packageRules": [
+    {
+      "groupName": "all patch dependencies",
+      "groupSlug": "all-patch",
+      "matchPackageNames": ["*"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+    },
+    {
+      // Route Liquibase updates to a dedicated branch
+      // because version 4.32.0 is bugged when using SQL changesets
+      // see: https://github.com/liquibase/liquibase/issues/7137
+      "groupName": "Liquibase",
+      "groupSlug": "liquibase",
+      "matchPackageNames": [
+        "org.liquibase:liquibase-core",
+        "org.liquibase.ext:*"
+      ],
+    },
+  ],
+}

@@ -1,0 +1,9 @@
+package org.assertj.core.api;
+
+import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.NotNull;
+
+public class Assertions {
+    public static AbstractStringAssert<?> assertThat(@Nullable String actual);
+    public static <ELEMENT> IterableAssert<ELEMENT> assertThat(@Nullable Iterable<? extends ELEMENT> actual);
+}

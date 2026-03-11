@@ -1,0 +1,39 @@
+name: 'Download Dependency Check Database'
+description: 'Action to download and cache the Dependency Check Database'
+
+inputs:
+  tool-version:
+    description: 'Version of the Dependency Check tool to use'
+    required: true
+  database-directory:
+    description: 'Path to the Dependency Check Database directory'
+    required: true
+  project-directory:
+    description: 'Path to the project directory'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Cache Dependency Check
+      id: dependency-check-cache
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+      with:
+        path: ${{ inputs.project-directory }}/dependency-check/
+        key: dependency-check-${{ runner.os }}-${{ inputs.tool-version }}
+
+    - name: Download Dependency Checker
+      shell: bash
+      if: steps.dependency-check-cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.project-directory }}
+      run: |
+        DEPENDENCY_CHECKER_VERSION=${{ inputs.tool-version }}
+        echo DEPENDENCY_CHECKER_VERSION=$DEPENDENCY_CHECKER_VERSION
+        wget -qO- https://github.com/dependency-check/DependencyCheck/releases/download/v${DEPENDENCY_CHECKER_VERSION}/dependency-check-${DEPENDENCY_CHECKER_VERSION}-release.zip | busybox unzip -
+
+    - name: Run vulnerability check on new dependencies
+      shell: bash
+      working-directory: ${{ inputs.project-directory }}
+      run: |
+        bash ${{ github.workspace }}/.ci/scripts/maven_springboot/incremental-dependency-check.sh ${{ inputs.project-directory }}/dependency-check/bin/dependency-check.sh ${{ inputs.database-directory }} origin/$GITHUB_BASE_REF

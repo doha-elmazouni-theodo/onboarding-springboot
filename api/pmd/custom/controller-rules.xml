@@ -1,0 +1,42 @@
+<ruleset name="Custom Controller Rules">
+    <description>
+        Custom rules for Spring controllers
+    </description>
+    <rule name="CheckValidAnnotationOnControllerMethods"
+          language="java"
+          message="Method arguments of type '*Request' in a RestController should be annotated with @Valid"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //ClassDeclaration[//Annotation[@SimpleName='RestController']]
+                        //MethodDeclaration
+                        //FormalParameter[ends-with(ClassType/@SimpleName, 'Request')]
+                        [not(//Annotation[@SimpleName='Valid'])]
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+    <!-- rule to prevent @PreAuthorize("permitAll()") -->
+    <rule name="AvoidPreAuthorizePermitAll"
+          language="java"
+          message="Do not use @PreAuthorize(&quot;permitAll()&quot;) in controllers. For unauthenticated access, expose the route under a **/public/** endpoint instead."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                    //ClassDeclaration[.//Annotation[@SimpleName='RestController' or @SimpleName='Controller']]
+                    //MethodDeclaration
+                    //Annotation[@SimpleName='PreAuthorize']
+                    [.//*[contains(@Image, 'permitAll')]]
+                ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

@@ -1,0 +1,56 @@
+<ruleset name="Custom Java Rules">
+  <description>
+    Custom rules for Design choices
+  </description>
+  <rule name="UseEclipseCollectionsInNonPrivateMethods"
+    language="java"
+    message="Non-private methods should not use Collection, List, Set, or Map in their signatures. Use either Mutable or Immutable equivalents"
+    class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <properties>
+      <property name="xpath">
+        <value>
+          //MethodDeclaration[not(@Visibility="private")]//FormalParameter//ClassType[@SimpleName="List" or @SimpleName="Set" or @SimpleName="Map" or @SimpleName="Collection"]
+          |
+          //MethodDeclaration[not(@Visibility="private")]/ClassType[@SimpleName="List" or @SimpleName="Set" or @SimpleName="Map" or @SimpleName="Collection"]
+        </value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseEclipseCollectionsInFields"
+    language="java"
+    message="Fields should not be of type Collection, List, Set, or Map. Use either Mutable or Immutable equivalents"
+    class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <properties>
+      <property name="xpath">
+        <value>
+          //ClassDeclaration[not(pmd-java:hasAnnotation("jakarta.persistence.Entity"))]//FieldDeclaration/ClassType[@SimpleName="List" or @SimpleName="Set" or @SimpleName="Map" or @SimpleName="Collection"]
+          |
+          //RecordDeclaration//RecordComponent//ClassType[@SimpleName="List" or @SimpleName="Set" or @SimpleName="Map" or @SimpleName="Collection"]
+        </value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseCollectionUtils"
+    language="java"
+    message="Do not use factories defined in Eclipse Collections. Use either Mutable or Immutable utility classes"
+    class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <properties>
+      <property name="xpath">
+        <value>
+          //FieldAccess[@Name="immutable" or @Name="mutable"]/TypeExpression/ClassType[
+                @SimpleName="Bags"
+             or @SimpleName="BiMaps"
+             or @SimpleName="Lists"
+             or @SimpleName="Maps"
+             or @SimpleName="Sets"
+             or @SimpleName="SortedBags"
+             or @SimpleName="SortedMaps"
+             or @SimpleName="SortedSets"
+            ]
+        </value>
+      </property>
+    </properties>
+  </rule>
+</ruleset>

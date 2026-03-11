@@ -1,0 +1,7 @@
+package org.eclipse.collections.api.map;
+
+import jakarta.annotation.Nullable;
+
+public interface MapIterable<K, V> {
+    @Nullable V get(@Nullable Object var1);
+}

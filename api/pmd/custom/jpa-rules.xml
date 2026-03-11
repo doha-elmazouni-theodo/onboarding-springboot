@@ -1,0 +1,22 @@
+<ruleset name="Custom Lombok Rules">
+    <description>
+        The Checkerframework that is used for nullability check doesn't understand the 'nullable' attributes
+        So it's better to use @Nullable and @NotNull annotation that impact both DB schema and checkerframework
+    </description>
+    <rule name="AvoidNullableInJPAAnnotations"
+          language="java"
+          message="Avoid using the 'nullable' attribute in annotations within @Entity or @Embeddable classes. Use @Nullable or @NotNull instead"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //ClassDeclaration[//Annotation[@SimpleName='Entity' or @SimpleName='Embeddable']]
+                        //AnnotationMemberList[MemberValuePair[@Image="nullable"]]
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

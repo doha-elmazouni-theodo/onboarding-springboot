@@ -1,0 +1,34 @@
+name: CI/CD
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  configure:
+    name: Configure
+    uses: ./.github/workflows/all_configure.yml
+    secrets: inherit
+
+  cicd:
+    name: Execute
+    needs: configure
+    uses: ./.github/workflows/all_cicd.yml
+    with:
+      config: ${{ needs.configure.outputs.config }}
+    secrets: inherit
+
+  # Use this job's name in the github ruleset to enforce workflow success on PRs
+  # Without it, you would have to specify all the individual jobs, AND maintain that list over time.
+  # See: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging
+  workflow-end-marker:
+    name: Workflow end marker
+    if: ${{ github.event_name == 'pull_request' && failure() }} # Skipped jobs are considered successful, so only run this on failure
+    needs: cicd
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "The workflow has failed"
+          exit 1

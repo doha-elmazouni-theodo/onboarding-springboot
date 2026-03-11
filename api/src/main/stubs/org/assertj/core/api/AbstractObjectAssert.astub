@@ -1,0 +1,13 @@
+package org.assertj.core.api;
+
+import java.util.List;
+import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.NonNull;
+
+public abstract class AbstractObjectAssert<SELF extends AbstractObjectAssert<SELF, ACTUAL>, ACTUAL>
+    extends AbstractAssert<SELF, ACTUAL> {
+
+    public final AbstractListAssert<?, List<?>, Object, ObjectAssert<Object>> extracting(
+        Function<? super @NonNull ACTUAL, ?>... extractors
+    );
+}

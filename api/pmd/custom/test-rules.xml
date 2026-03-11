@@ -1,0 +1,29 @@
+<ruleset name="Custom Test Rules">
+    <description>
+        Custom test rules
+    </description>
+    <rule name="DisallowJUnitAssertions"
+          language="java"
+          message="Do not use JUnit assertions. Use AssertJ assertions instead."
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //MethodCall[matches(
+                            @MethodName,
+                            '^(assertEquals|assertNotEquals|assertTrue|assertFalse|assertNull|assertNotNull|assertSame|assertNotSame|assertArrayEquals|assertIterableEquals|assertLinesMatch|assertThrows|assertDoesNotThrow|assertTimeout|assertTimeoutPreemptively|assertAll)$'
+                        )]
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+    <rule name="EnforceActPatternInTests"
+          language="java"
+          message="Enforce Act pattern in tests."
+          class="com.theodo.pmd.customrules.EnforceActPatternInTestsRule">
+        <priority>1</priority>
+    </rule>
+</ruleset>

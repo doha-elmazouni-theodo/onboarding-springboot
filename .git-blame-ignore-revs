@@ -1,0 +1,10 @@
+# Do not copy this file to new project repositories.
+
+# .git-blame-ignore-revs
+# doc: https://docs.github.com/en/repositories/working-with-files/using-files/viewing-and-understanding-files#ignore-commits-in-the-blame-view
+
+# chore: replace nimbleways with theodo
+25ea2372da96664d5c4d8ea09c9aa146cde086c3
+
+# chore: format codebase with Spotless
+533e876ca3206462b62aed5b6bd4d9c80d625145

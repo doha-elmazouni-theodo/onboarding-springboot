@@ -1,0 +1,155 @@
+#!/bin/bash
+
+set -e
+
+####################### Colors #######################
+color_red='\033[0;31m'
+color_green='\033[0;32m'
+color_yellow='\033[0;33m'
+color_default='\033[0m'
+
+####################### Args #########################
+command=$1
+migrationLabel=$2
+
+####################### Variables #########################
+MIGRATION_LABEL=$migrationLabel
+DATE_WITH_TIME=$(date -u "+%Y%m%d-%H%M%S")
+DIFF_CHANGELOG_FILE=src/main/resources/db/changelog/${DATE_WITH_TIME}-${MIGRATION_LABEL}.postgresql.sql
+DIFF_CHANGELOG_FILE_PATH=changelog/${DATE_WITH_TIME}-${MIGRATION_LABEL}.postgresql.sql
+CHANGE_LOG_MASTER=src/main/resources/db/changelog-master.yaml
+NUMBER_OF_ARGUMENTS=$#
+
+# this function is called to exit the script
+finish() {
+  printf "\n${color_green}Have a great development day!!${color_default}\n"
+  exit
+}
+
+# this function is invoked when the user enter an unknown command (the command is retrieved from $1)
+unknown() {
+  printf "\n${color_red}Unknown command, Read the file to know available commands.${color_default}\n"
+}
+
+runCommandSilently() {
+  if ! output=$(eval "$*" 2>&1); then
+    printf "${color_yellow}${output}${color_default}\n"
+    printf "\n${color_red}Previous command failed (see logs above). Aborting ...\n"
+    printf "Command: [$*]${color_default}\n"
+    exit 1
+  fi
+}
+
+createReferenceSchema() {
+  echo "Generating Hibernate reference schema..."
+  runCommandSilently ./mvnw spring-boot:run ${SCHEMA_TOOLS_JVM_ARGS}
+}
+
+# this function is responsible for making migration
+makeMigration() {
+  if ! [[ "$MIGRATION_LABEL" =~ ^[a-z0-9-]{1,}$ ]] || [ $NUMBER_OF_ARGUMENTS -gt 2 ]; then
+      printf "\n${color_red}Your migration label is not valid, it must respect the following regex ${color_yellow}^[a-z0-9-]{1,}$ ${color_default} Try: ${color_green} db make valid-migration-label${color_default}\n"
+      exit 1
+  fi
+  applyMigrations
+  echo "Compiling..."
+  runCommandSilently ./mvnw clean compile
+  createReferenceSchema
+  echo "Running Liquibase diff to generate changelog file..."
+  runCommandSilently ./mvnw liquibase:diff "-Dliquibase.diffChangeLogFile=${DIFF_CHANGELOG_FILE}" ${LIQUIBASE_JVM_ARGS} ${LIQUIBASE_REFERENCE_JVM_ARGS}
+  if [ -f "${DIFF_CHANGELOG_FILE}" ]; then
+    if [ -s "${CHANGE_LOG_MASTER}" ] && [ -n "$(tail -c 1 "${CHANGE_LOG_MASTER}")" ]; then
+      printf "\n" >> "${CHANGE_LOG_MASTER}"
+    fi
+    echo "  - include:" >> "${CHANGE_LOG_MASTER}"
+    echo "      file:" "${DIFF_CHANGELOG_FILE_PATH}" >> "${CHANGE_LOG_MASTER}"
+    echo "      relativeToChangelogFile: true" >>  "${CHANGE_LOG_MASTER}"
+    printf "\n${color_yellow}The following migration file was created: (path: ${DIFF_CHANGELOG_FILE})${color_default}\n"
+    cat "${DIFF_CHANGELOG_FILE}"
+    printf "${color_yellow}Do you want to apply all migrations, including the new one, to your current database? (yes/no): ${color_default}"
+    read -r user_input
+    user_input_lower=$(echo "$user_input" | tr '[:upper:]' '[:lower:]')
+    if [[ "$user_input_lower" == "yes" || "$user_input_lower" == "y" ]]; then
+      applyMigrations
+      printf "\n${color_green}Changes have been applied successfully to your current database.${color_default}\n"
+    else
+      printf "\n${color_red}Changes were not applied.${color_default}\n"
+      printf "${color_yellow}Warning: The generated changelog file was not removed. Please review and delete it if necessary.${color_default}\n"
+    fi
+  else
+    printf "\n${color_red}No changes detected or changelog file not found.${color_default}\n"
+  fi
+}
+
+# this function applies migrations
+applyMigrations() {
+  echo "Applying migrations..."
+  runCommandSilently ./mvnw clean compile
+  runCommandSilently ./mvnw liquibase:update ${LIQUIBASE_JVM_ARGS}
+}
+
+# this function reads the .env file and sets JVM arguments for Liquibase
+prepareLiquibasePrerequisites() {
+  docker compose -f ../docker-compose.yml up -d db
+
+  if [ ! -f ../.env ]; then
+    printf "\n${color_red}.env file not found. Please ensure it exists in the current directory.${color_default}\n"
+    exit 1
+  fi
+
+  # Load variables from .env file
+  export $(grep -v '^#' ../.env | xargs)
+
+  # Get the exposed port from Docker
+  EXPOSED_PORT=$(docker compose -f ../docker-compose.yml port db 5432 | awk -F: '{print $2}')
+
+  if [ -z "$EXPOSED_PORT" ]; then
+    printf "\n${color_red}Failed to retrieve the exposed port from Docker.${color_default}\n"
+    exit 1
+  fi
+
+  # Build Liquibase JVM arguments
+  LIQUIBASE_JVM_ARGS="\"-Dliquibase.config.dbport=${EXPOSED_PORT}\" \
+\"-Dliquibase.config.dbname=${POSTGRE_DATABASE_NAME}\" \
+\"-Dliquibase.username=${POSTGRE_USER}\" \
+\"-Dliquibase.password=${POSTGRE_PASSWORD}\""
+
+  DB_URL="jdbc:postgresql://localhost:${EXPOSED_PORT}/${POSTGRE_DATABASE_NAME}"
+
+  HIBERNATE_REFERENCE_SCHEMA=hibernate_reference
+
+  LIQUIBASE_REFERENCE_JVM_ARGS="\"-Dliquibase.referenceUrl=${DB_URL}\" \
+\"-Dliquibase.referenceUsername=${POSTGRE_USER}\" \
+\"-Dliquibase.referencePassword=${POSTGRE_PASSWORD}\" \
+\"-Dliquibase.referenceDriver=org.postgresql.Driver\" \
+\"-Dliquibase.referenceDefaultSchemaName=${HIBERNATE_REFERENCE_SCHEMA}\""
+  
+  SCHEMA_TOOLS_ARGS="--spring.jpa.hibernate.ddl-auto=none \
+--spring.sql.init.mode=never \
+--spring.liquibase.enabled=false \
+--schema-tools.operation=export \
+--schema-tools.export_schema=${HIBERNATE_REFERENCE_SCHEMA}"
+
+  SCHEMA_TOOLS_JVM_ARGS="\"-Dspring-boot.run.profiles=schema-tools\" \
+\"-Dspring-boot.run.arguments=${SCHEMA_TOOLS_ARGS}\""
+}
+
+# Read this to know available commands
+# Switch statement to handle user input commands
+######################## commands #########################
+case $command in
+applyMigrations)
+  prepareLiquibasePrerequisites
+  applyMigrations
+  finish
+  ;;
+makeMigration)
+  prepareLiquibasePrerequisites
+  makeMigration
+  finish
+  ;;
+*)
+  unknown
+  exit 1
+  ;;
+esac

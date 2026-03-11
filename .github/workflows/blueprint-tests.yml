@@ -1,0 +1,134 @@
+name: ~ ⚪ Blueprint-specific tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+
+  archive-test-reports:
+    name: Aggregate latest test reports for future comparisons
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download short-lived reports
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: api-*-reports
+          path: downloads
+          merge-multiple: true
+
+      - name: Copy comparison inputs
+        run: |
+          mkdir -p reports/jacoco reports/surefire reports/pitest
+          cp downloads/jacoco/jacoco.csv reports/jacoco/
+          cp downloads/pitest/mutations.csv reports/pitest/
+          find downloads/surefire -name '*.xml' -exec cp {} reports/surefire/ \;
+          if [ -z "$(find reports/surefire -name '*.xml' -print -quit)" ]; then
+            echo "No surefire XML files copied" >&2
+            exit 1
+          fi
+
+      - name: Upload aggregated reports
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: aggregated-api-reports
+          path: reports/
+          include-hidden-files: true
+          retention-days: 30
+
+  compare-test-suites:
+    name: Compare executed test suites with base branch
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve base workflow run
+        id: resolve
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          result-encoding: string
+          script: |
+            const { owner, repo } = context.repo;
+            const baseSha = context.payload.pull_request.base.sha;
+            const baseRef = context.payload.pull_request.base.ref;
+            const workflowPath = '.github/workflows/all.yml';
+
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: workflowPath,
+              branch: baseRef,
+              status: 'success',
+              per_page: 100
+            });
+
+            const match = runs.find(run => run.head_sha === baseSha);
+
+            if (!match) {
+              throw new Error(`No successful run of ${workflowPath} found for base SHA ${baseSha}. Ensure main has a green CI/CD run.`);
+            }
+
+            core.info(`Resolved base workflow run id: ${match.id}`);
+            return String(match.id);
+
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Prepare workspace
+        shell: bash
+        run: |
+          mkdir -p artifacts/head artifacts/base
+
+      - name: Download head reports
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: api-*-reports
+          path: artifacts/head
+          merge-multiple: true
+
+      - name: Download base aggregated reports
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: aggregated-api-reports
+          path: artifacts/base
+          run-id: ${{ steps.resolve.outputs.result }}
+          github-token: ${{ github.token }}
+
+      - name: Compare Jacoco reports
+        shell: bash
+        run: |
+          python3 .ci/scripts/blueprint/maven_springboot/generate_jacoco_digest.py \
+            --input "artifacts/head/jacoco/jacoco.csv" \
+            --input "artifacts/base/jacoco/jacoco.csv"
+
+          diff -u "artifacts/base/jacoco/jacoco.csv.digest" "artifacts/head/jacoco/jacoco.csv.digest"
+
+      - name: Compare Surefire reports
+        shell: bash
+        run: |
+          python3 .ci/scripts/blueprint/maven_springboot/generate_surefire_digest.py \
+            --input "artifacts/head/surefire" \
+            --input "artifacts/base/surefire"
+
+          diff -u "artifacts/base/surefire/.digest" "artifacts/head/surefire/.digest"
+
+      - name: Compare PIT reports
+        shell: bash
+        run: |
+          python3 .ci/scripts/blueprint/maven_springboot/generate_pitest_digest.py \
+            --input "artifacts/head/pitest/mutations.csv" \
+            --input "artifacts/base/pitest/mutations.csv"
+
+          diff -u "artifacts/base/pitest/mutations.csv.digest" "artifacts/head/pitest/mutations.csv.digest"
+
+      - name: Upload artifacts for debugging
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: blueprint-tests-artifacts
+          path: artifacts/
+          retention-days: 1
+          include-hidden-files: true

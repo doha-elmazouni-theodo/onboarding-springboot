@@ -1,0 +1,22 @@
+name: ~ ⚪ Continuous Integration
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        required: true
+        type: string
+
+jobs:
+  # One CI job per project in the monorepo
+  # It's recommended to "use" a reusable workflow template (like _ci_maven_springboot.yml)
+  ci-backend:
+    name: Backend
+    if: ${{ fromJson(inputs.config).projects.backend.run-pipeline }}
+    uses: ./.github/workflows/_ci_maven_springboot.yml
+    secrets: inherit
+    with:
+      project-directory: api
+      unique-artifact-name-prefix: api
+      compose-service-name: api
+      always-expose-test-report-artifacts: ${{ fromJson(inputs.config).always-expose-test-report-artifacts }}

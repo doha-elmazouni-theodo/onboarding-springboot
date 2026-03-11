@@ -1,0 +1,6 @@
+#Those files are going to be ignored during the destructive queries check
+whitelisted_files:
+  - file: "changelog/20211013125551-create-user-table.sql"
+    explanation: "Example file to ignore"
+
+

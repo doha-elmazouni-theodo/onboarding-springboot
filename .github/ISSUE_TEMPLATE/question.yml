@@ -1,0 +1,28 @@
+name: Question
+description: Ask for clarification on existing behavior or standards.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Ask one clear question.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What did you try? Link issue/PR/file paths if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_guidance
+    attributes:
+      label: Expected guidance
+      description: What decision or next step do you need?
+    validations:
+      required: true

@@ -1,0 +1,7 @@
+package liquibase.diff.output;
+
+import org.jspecify.annotations.Nullable;
+
+public class DiffOutputControl {
+    public DiffOutputControl(boolean includeCatalog, boolean includeSchema, boolean includeTablespace, @Nullable CompareControl.SchemaComparison @Nullable [] schemaComparisons);
+}

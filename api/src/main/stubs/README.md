@@ -1,0 +1,1 @@
+See https://checkerframework.org/manual/#stub-format

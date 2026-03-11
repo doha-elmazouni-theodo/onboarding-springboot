@@ -1,0 +1,7 @@
+package liquibase;
+
+import org.jspecify.annotations.Nullable;
+
+public class CatalogAndSchema {
+    public CatalogAndSchema(@Nullable String catalogName, @Nullable String schemaName);
+}

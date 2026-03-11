@@ -1,0 +1,25 @@
+target/
+**/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+/api/.idea/*
+!/api/.idea/inspectionProfiles
+/.idea/*
+*.iws
+*.iml
+*.ipr
+
+bin/
+
+### VS Code ###
+.vscode/
+.settings/
+### macOS ###
+.DS_Store
+
+.classpath
+.project
+.factorypath
+

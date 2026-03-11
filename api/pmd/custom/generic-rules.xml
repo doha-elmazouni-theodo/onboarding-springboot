@@ -1,0 +1,51 @@
+<ruleset name="Custom Lombok Rules">
+    <description>
+        Custom rules
+    </description>
+    <rule name="DisallowBuilderAnnotation"
+          language="java"
+          message="The use of @Builder annotation is disallowed. Use @StagedBuilder in prod or @Builder(factoryMethod = &quot;aUser&quot;) in tests instead"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //Annotation[@SimpleName='Builder'][not(.//MemberValuePair[@Image="factoryMethod"])]
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+    <rule name="DisallowUuidGeneratorAnnotation"
+          language="java"
+          message="The use of @UuidGenerator annotation is disallowed. Use RandomGeneratorPort to generate UUIDs if needed"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //Annotation[@SimpleName='UuidGenerator']
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+    <rule name="NoContentJsonCallInIntegrationTests"
+          language="java"
+          message="Do not use content().json() in integration tests. Use jsonStrictArrayOrder() or jsonIgnoreArrayOrder() instead"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+                    <![CDATA[
+                        //ClassDeclaration[ExtendsList/ClassType[@SimpleName='BaseWebMvcIntegrationTests']]
+                        //MethodCall[@MethodName="json"]/MethodCall[@MethodName="content"]
+                    ]]>
+                </value>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

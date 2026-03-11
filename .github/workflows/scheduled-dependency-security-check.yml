@@ -1,0 +1,56 @@
+name: Scheduled - Daily check for vulnerable dependencies
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  spring-boot-dependency-security-check:
+    name: Spring Boot projects
+    concurrency: dependency-security-check # To avoid downloading the database multiple times in parallel
+    strategy:
+      matrix:
+        project-directory: ['api'] # Add to this array all Spring Boot project directories in the monorepo
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 25
+    env:
+      PROJECT_DIR: ${{ github.workspace }}/${{ matrix.project-directory }}
+      MAVEN_OPTS: "-Djava.awt.headless=true"
+      MAVEN_CLI_OPTS: "--batch-mode --fail-at-end"
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Java
+        run: |
+          JAVA_HOME="${JAVA_HOME_25_X64:-$JAVA_HOME_25_arm64}"
+          echo "JAVA_HOME=${JAVA_HOME}" >> $GITHUB_ENV
+
+      - name: Download Dependency Check Database
+        uses: ./.github/actions/download-dependency-check-database
+        with:
+          database-directory: ${{ env.PROJECT_DIR }}/dependency-check-database
+          nvdApiKey: ${{ secrets.NVD_API_KEY }}
+          project-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Run vulnerability check on all dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          ./mvnw $MAVEN_CLI_OPTS -DdataDirectory=$PROJECT_DIR/dependency-check-database dependency-check:check
+
+      - name: Create project slug from directory name
+        id: create-project-slug
+        if: ${{ failure() }}
+        run: echo "project-slug=$(echo '${{ matrix.project-directory }}' | tr '/' '_')" >> $GITHUB_OUTPUT
+
+      - name: Upload vulnerable dependencies report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ steps.create-project-slug.outputs.project-slug }}-vulnerable-dependencies-report
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/target/dependency-check-report.html

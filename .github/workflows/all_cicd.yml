@@ -1,0 +1,36 @@
+name: ~ ⚪ Execute CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ fromJson(inputs.config).workflow-concurrency-group }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/all_ci.yml
+    with:
+      config: ${{ inputs.config }}
+    secrets: inherit
+
+  cd:
+    name: CD
+    needs: ci
+    uses: ./.github/workflows/all_cd.yml
+    with:
+      config: ${{ inputs.config }}
+    secrets: inherit
+
+  # Remove this job after creating a new client project from the blueprint
+  blueprint-tests:
+    name: Blueprint-specific tests
+    needs: ci
+    if: vars.IS_BLUEPRINT == 'true'
+    uses: ./.github/workflows/blueprint-tests.yml
+    secrets: inherit

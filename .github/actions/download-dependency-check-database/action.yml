@@ -1,0 +1,64 @@
+name: 'Download Dependency Check Database'
+description: 'Action to download and cache the Dependency Check Database'
+
+inputs:
+  database-directory:
+    description: 'Path to the Dependency Check Database directory'
+    required: true
+  nvdApiKey:
+    description: 'Key for the NVD API to update the database'
+    required: true
+  project-directory:
+    description: 'Path to the project directory'
+    required: true
+
+outputs:
+  tool-version:
+    description: 'Version of the Dependency Check tool used'
+    value: ${{ steps.dependency-check-version.outputs.value }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get Dependency Check version from POM.XML
+      id: dependency-check-version
+      shell: bash
+      working-directory: ${{ inputs.project-directory }}
+      run: |
+        # TODO: investigate why apt install takes almost one minute
+        which xmllint >/dev/null 2>&1 || { sudo apt update -y > /dev/null && sudo apt install -y libxml2-utils > /dev/null; }
+        echo "value=$(xmllint --xpath "//*[local-name()='properties']/*[local-name()='org.owasp.dependency-check-maven.version']/text()" pom.xml | xargs)" >> $GITHUB_OUTPUT
+
+    - name: Get current date
+      id: date
+      shell: bash
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+    - name: Restore cached Dependency Check Database
+      id: dependency-check-database-restore
+      uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+      with:
+        path: ${{ inputs.database-directory }}
+        key: dependency-check-${{ runner.os }}-${{ steps.dependency-check-version.outputs.value }}-${{ steps.date.outputs.date }}
+        restore-keys: |
+          dependency-check-${{ runner.os }}-${{ steps.dependency-check-version.outputs.value }}-
+          dependency-check-${{ runner.os }}-
+          dependency-check-
+
+    - name: Update vulnerabilities database
+      shell: bash
+      working-directory: ${{ inputs.project-directory }}
+      if: steps.dependency-check-database-restore.outputs.cache-hit != 'true'
+      env:
+        MAVEN_OPTS: "-Djava.awt.headless=true"
+        MAVEN_CLI_OPTS: "--batch-mode --fail-at-end"
+      run: |
+        ./mvnw $MAVEN_CLI_OPTS -DdataDirectory=${{ inputs.database-directory }} -DnvdApiKey=${{ inputs.nvdApiKey }} dependency-check:update-only
+
+    - name: Save Dependency Check Database cache
+      if: steps.dependency-check-database-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+      with:
+        path: ${{ inputs.database-directory }}
+        key: ${{ steps.dependency-check-database-restore.outputs.cache-primary-key }}
+

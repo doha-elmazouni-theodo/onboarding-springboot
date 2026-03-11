@@ -1,0 +1,3 @@
+# This file is used when the actuator's endpoint port is different from the server's port
+# TODO: find a way for GlobalExceptionHandler to be used too in this case
+com.theodo.springblueprint.common.api.security.WebSecurityConfiguration

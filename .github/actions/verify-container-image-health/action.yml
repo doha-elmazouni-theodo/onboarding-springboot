@@ -1,0 +1,139 @@
+name: 'Verify Container Image Health'
+description: 'Action to verify the health of a Docker container image'
+
+inputs:
+  working-directory:
+    description: 'Path to the Docker Compose directory'
+    required: true
+  service-name:
+    description: 'Name of the Docker Compose service to verify health'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Docker Compose command
+      shell: bash
+      run: |
+        echo COMPOSE_CMD='docker compose --project-directory=${{ inputs.working-directory }}' >> "$GITHUB_ENV"
+        echo "SERVICE_NAME=${{ inputs.service-name }}" >> $GITHUB_ENV
+
+    - name: Pull Docker images
+      shell: bash
+      run: |
+        echo "::group::Pull Docker images"
+        $COMPOSE_CMD pull --include-deps "$SERVICE_NAME"
+        echo "::endgroup::"
+
+    - name: Build Docker service "${{ inputs.service-name }}"
+      shell: bash
+      run: |
+        echo "::group::Build Docker service"
+        $COMPOSE_CMD build --with-dependencies "$SERVICE_NAME"
+        echo "::endgroup::"
+
+    - name: Run Docker service "${{ inputs.service-name }}"
+      shell: bash
+      run: |
+        echo "::group::Run Docker service"
+        $COMPOSE_CMD run --name "$SERVICE_NAME" -d "$SERVICE_NAME"
+        echo "::endgroup::"
+      
+    - name: Assert image has valid healthcheck
+      shell: bash
+      run: |
+        echo "::group::Assert image has valid healthcheck"
+        IMAGE_ID=$(docker inspect --format='{{.Image}}' "$SERVICE_NAME")
+        IMAGE_HEALTHCHECK=$(docker image inspect --format='{{json .Config.Healthcheck}}' "$IMAGE_ID")
+
+        if [ "$IMAGE_HEALTHCHECK" = "null" ] || [ "$IMAGE_HEALTHCHECK" = '{"Test":["NONE"]}' ]; then
+          echo "❌ Healthcheck is not properly defined in Dockerfile"
+          exit 1
+        fi
+
+        echo "✅ Healthcheck is properly defined in Dockerfile"
+
+        echo "IMAGE_HEALTHCHECK=$IMAGE_HEALTHCHECK" >> "$GITHUB_ENV"
+        echo "::endgroup::"
+
+    - name: Assert Docker Compose did not override Dockerfile healthcheck
+      shell: bash
+      run: |
+        echo "::group::Assert Docker Compose did not override Dockerfile healthcheck"
+        CONTAINER_HEALTHCHECK=$(docker inspect --format='{{json .Config.Healthcheck}}' "$SERVICE_NAME")
+
+        if [ "$CONTAINER_HEALTHCHECK" != "$IMAGE_HEALTHCHECK" ]; then
+          echo "❌ Healthcheck mismatch between container and Dockerfile"
+          echo "❌ Running container: $CONTAINER_HEALTHCHECK"
+          echo "❌ Dockerfile: $IMAGE_HEALTHCHECK"
+          exit 1
+        fi
+
+        echo "✅ Healthcheck is not overridden by Docker Compose"
+        echo "::endgroup::"
+
+    - name: Wait for container health status
+      shell: bash
+      run: |
+        echo "::group::Wait for container health status"
+        # TODO: define the number of retries and sleep time based dynamically on the healthcheck configuration
+        for i in {1..10}; do
+          echo "Last healthcheck execution log:"
+          docker inspect --format='{{json .State.Health.Log}}' "$SERVICE_NAME" | jq '.[-1] // empty'
+          status=$(docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null || echo "not_found")
+          if [ "$status" == "healthy" ]; then
+            echo "::endgroup::"
+            echo "=> ✅ Container is healthy"
+            exit 0
+          elif [ "$status" == "unhealthy" ]; then
+            echo "::endgroup::"
+            echo "=> ❌ Container is unhealthy"
+            exit 1
+          elif [ "$(docker inspect --format='{{.State.Running}}' "$SERVICE_NAME" 2>/dev/null)" != "true" ]; then
+            echo "::endgroup::"
+            echo "=> ❌ Container stopped unexpectedly"
+            exit 1
+          elif [ "$status" == "starting" ]; then
+            echo "=> ⌛ [$i/30] Container is starting"
+            sleep 3
+          else
+            echo "::endgroup::"
+            echo "=> ❓ Unexpected status: $status"
+            exit 1
+          fi
+          echo ================================================================
+        done
+        echo "⏱️ Health check timed out after 30 seconds"
+        exit 1
+
+    - name: Show container status
+      shell: bash
+      if: ${{ always() }}
+      run: |
+        echo "::group::Show container status"
+        docker ps -a || true
+        echo "::endgroup::"
+
+    - name: Show container logs
+      shell: bash
+      if: ${{ always() }}
+      run: |
+        echo "::group::Show container logs"
+        docker logs -t "$SERVICE_NAME" || true
+        echo "::endgroup::"
+
+    - name: Show dependencies logs
+      shell: bash
+      if: ${{ always() }}
+      run: |
+        echo "::group::Show dependencies logs"
+        $COMPOSE_CMD logs -t || true
+        echo "::endgroup::"
+
+    - name: Shutdown all containers
+      shell: bash
+      if: ${{ always() }}
+      run: |
+        echo "::group::Shutdown all containers"
+        $COMPOSE_CMD down --remove-orphans --volumes
+        echo "::endgroup::"

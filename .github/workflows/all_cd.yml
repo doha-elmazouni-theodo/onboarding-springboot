@@ -1,0 +1,23 @@
+name: ~ ⚪ Continuous Deployment
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        required: true
+        type: string
+
+concurrency: 
+  group: ${{ fromJson(inputs.config).target-environment }}
+
+# All continuous deployment jobs should be defined here
+# They will run after all the CI jobs are completed successfully
+jobs:
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-24.04
+    if: false # Change this condition when you want to enable CD (eg: `if: fromJson(inputs.config).projects.backend.run-pipeline`)
+    steps:
+      - name: Placeholder for deploy step
+        run: echo "Backend changed but no deploy step defined. Skipping."

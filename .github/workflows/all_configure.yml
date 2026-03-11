@@ -1,0 +1,66 @@
+name: ~ ⚪ Configure CI/CD
+
+on:
+  workflow_call:
+    outputs:
+      config:
+        description: "Configuration for CI/CD jobs"
+        value: ${{ jobs.create-config.outputs.config }}
+
+env:
+  DEFAULT_WATCHED_ITEMS_COMMON: |
+    .ci/scripts/common/
+    .github/actions/check-changes/
+    .github/actions/verify-container-image-health/
+  DEFAULT_WATCHED_ITEMS_MAVEN_SPRINGBOOT: |
+    .github/workflows/_ci_maven_springboot.yml
+    .ci/scripts/maven_springboot/
+    .github/actions/setup-java/
+    .github/actions/download-dependency-check-database/
+    .github/actions/incremental-dependency-check/
+    .github/workflows/blueprint-tests.yml
+    .ci/scripts/blueprint/maven_springboot/
+
+jobs:
+  create-config:
+    name: Create Configuration
+    runs-on: ubuntu-24.04
+    outputs:
+      config: ${{ steps.export-config.outputs.result }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0 # needed for change detection
+
+      - name: Detect git paths casing issues
+        run: bash "${{ github.workspace }}/.ci/scripts/common/detect-case-sensitivity-issues-in-paths.sh"
+
+      - name: Check for changes in backend-related files
+        id: check-backend-changes
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/check-changes
+        with:
+          watched-items: |
+            ${{ env.DEFAULT_WATCHED_ITEMS_COMMON }}
+            ${{ env.DEFAULT_WATCHED_ITEMS_MAVEN_SPRINGBOOT }}
+            api/
+            docker-compose.yml
+            docker-compose.dependencies.yml
+
+      - name: Export configuration as JSON string
+        id: export-config
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          result-encoding: string
+          script: |
+            return JSON.stringify({
+              "projects": {
+                backend: {
+                  "run-pipeline": ${{ github.event_name != 'pull_request' || steps.check-backend-changes.outputs.changed }}
+                }
+              },
+              "target-environment": "dev",
+              "workflow-concurrency-group": "${{ (github.event_name == 'pull_request' && github.event.pull_request.head.ref) || github.ref_name }}",
+              "always-expose-test-report-artifacts": ${{ vars.IS_BLUEPRINT == 'true' }}
+            })

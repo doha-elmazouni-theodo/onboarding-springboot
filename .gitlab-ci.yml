@@ -1,0 +1,149 @@
+default:
+  image: eclipse-temurin:25-jdk-alpine@sha256:0c4c6300cc86efdf6454702336a0d60352e227f3a862e8ae9861f393f8f1ede9
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --fail-at-end"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+
+cache:
+  paths:
+    - .m2/repository
+
+workflow:
+  rules:
+    - if: '$CI_MERGE_REQUEST_IID'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+stages:
+  - tests
+  - after_tests
+
+api:tests:
+  stage: tests
+  services:
+    - name: docker:dind@sha256:4924fece44d61eeec47f619a4c35cd70fa2a31cd36b6283943a122369549fb82
+      command: [ "--tls=false" ]
+  script:
+    - cd api
+    - ./mvnw $MAVEN_CLI_OPTS clean verify
+#   Report coverage to GitLab's MR overview
+    - awk -F"," '{ instructions += $4 + $5; instructionsCovered += $5;
+      branches += $6 + $7; branchesCovered += $7;
+      lines += $8 + $9; linesCovered += $9;
+      conditions += $10 + $11; conditionsCovered += $11;
+      methods += $12 + $13; methodsCovered += $13 }
+      END { print "Instructions coverage :", 100*instructionsCovered/instructions;
+      print "Branches coverage :", 100*branchesCovered/branches;
+      print "Lines coverage :", 100*linesCovered/lines;
+      print "Cyclomatic complexity coverage :", 100*conditionsCovered/conditions;
+      print "Methods coverage :", 100*methodsCovered/methods;
+      print "Average code coverage:", 100*(instructionsCovered/instructions + branchesCovered/branches + linesCovered/lines + conditionsCovered/conditions + methodsCovered/methods)/5 }'
+      target/site/jacoco/jacoco.csv
+  coverage: '/Average code coverage: \d+\.\d+/'
+  artifacts:
+    reports:
+      junit:
+        - api/target/surefire-reports/TEST-*.xml
+    paths:
+      - api/target/site/jacoco/jacoco.xml
+      - "api/target/*.jar"
+
+# taken from https://docs.gitlab.com/ee/user/project/merge_requests/test_coverage_visualization.html#java-and-kotlin-examples
+report-coverage:
+  stage: after_tests
+  image: registry.gitlab.com/haynes/jacoco2cobertura:1.0.10@sha256:a511ca02828bbbf042a7aad53617a9a09803b7fd33eba9c940c2bd64c5288784
+  script:
+    - python /opt/cover2cover.py api/target/site/jacoco/jacoco.xml $CI_PROJECT_DIR/api/src/main/java/ > api/target/site/cobertura.xml
+  needs: ["api:tests"]
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: api/target/site/cobertura.xml
+  cache: {}
+
+api:test-migrations:
+  stage: tests
+  services:
+    - "postgres:17.4@sha256:fe3f571d128e8efadcd8b2fde0e2b73ebab6dbec33f6bfe69d98c682c7d8f7bd"
+  variables:
+    POSTGRES_DB: db
+    POSTGRES_USER: user
+    POSTGRES_PASSWORD: password
+  script:
+    - cd api
+    - CHANGELOG_FILE=target/changelog-$CI_JOB_ID.sql
+    - ./mvnw $MAVEN_CLI_OPTS
+      "-Dliquibase.config.dbhost=postgres"
+      "-Dliquibase.config.promptOnNonLocalDatabase=false"
+      "-Dliquibase.diffChangeLogFile=${CHANGELOG_FILE}"
+      clean compile liquibase:update liquibase:diff
+    - apk add -q --no-cache --no-progress yq
+      && yq eval --exit-status '.databaseChangeLog | length == 0' $CHANGELOG_FILE 2&>1 1>/dev/null
+      || { echo -e "\e[31mYour entities are not in sync with your migrations. Did you forget to run 'make makeMigration' ?\e[0m"; exit 1;}
+
+owasp_dependency_check:
+  image: 
+    name: owasp/dependency-check@sha256:44462ad8135abde1741879f01af9806110cf0a637dd41b6504e97d2030b74454
+    entrypoint: [""]
+  stage: tests
+  script: 
+    - whoami 
+    - cd api 
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+    - git fetch origin main 
+    - git show "$(git log -n 1 origin/main --pretty=format:"%H")":api/pom.xml > mainPom.xml
+    - git diff --no-index -U0 mainPom.xml pom.xml> diffPom.txt  || echo "do not exit"  
+    - if [ -s diffPom.txt ];  
+        then ./mvnw $MAVEN_CLI_OPTS -B dependency:list  -Dsort=true -DoutputFile="dependency.txt" -DoutputAbsoluteArtifactFilename;
+        ./mvnw $MAVEN_CLI_OPTS -f mainPom.xml -B dependency:list  -Dsort=true -DoutputFile="dependencyMain.txt" -DoutputAbsoluteArtifactFilename; 
+        git diff --no-index -U0 dependencyMain.txt dependency.txt > diff.txt  || echo "do not exit" ;
+        if [ -s diff.txt ]; then
+          grep ^+  diff.txt | grep -Eo "(C:|/builds)/[a-zA-Z0-9./\?=_%:-]*" | while read line; do echo " -s "$line >> scanOpts.txt ; done ;
+          if [ -s scanOpts.txt ]; 
+            then SCAN_OPTS="$(cat scanOpts.txt | tr -d '\n')";
+            echo -e "\e[34m The new dependencies :$SCAN_OPTS" ;
+            /usr/share/dependency-check/bin/dependency-check.sh $SCAN_OPTS  
+            --format JSON --format HTML --prettyPrint  --failOnCVSS 8 --data $CI_PROJECT_DIR/.m2/repository/org/owasp/dependency-check-data/script/ --disableAssembly --disableNugetconf 
+            --disableNuspec --disableRetireJS ;
+            if [ $(grep -c "vulnerabilities" dependency-check-report.json) -gt 0 ]; then echo -e "\033[31m The new added dependencies are vulnerable, check the report for more info"; exit 2; 
+            else echo -e  "\e[34mNo vulnerabilities found"; fi;
+          else echo -e "\033[31mError in scan oprions" ; fi 
+        else echo -e "\e[34mNo new dependencies found" ; fi 
+      else echo -e "\e[34mNo difference between poms files"; fi
+  cache:
+    # this duplicated cache is needed because this image runs with a different user than the others, causing permission problems
+    key: dep-check-cache
+    paths:
+      - .m2/repository
+  artifacts:
+    when: on_failure
+    paths:
+        # Save the HTML and JSON report artifacts
+      - "api/dependency-check-report.html"
+  
+api:check_reproducible_build:
+  stage: after_tests
+  script:
+    - cd api
+    - './mvnw $MAVEN_CLI_OPTS install:install-file -Dfile=$(ls target/*.jar)'
+    - './mvnw $MAVEN_CLI_OPTS clean package artifact:compare -DskipTests'
+    - 'grep -x "ko=0" target/springblueprint-0.0.1-SNAPSHOT.buildcompare > /dev/null
+      || { echo -e "\e[31mThe build is not reproducible. Check job artifact for details. Documentation: https://maven.apache.org/guides/mini/guide-reproducible-builds.html\e[0m"; exit 1;}'
+  rules:
+    - changes:
+      - "api/pom.xml"
+  artifacts:
+    when: on_failure
+    paths:
+      - "api/target/springblueprint-0.0.1-SNAPSHOT.buildcompare"
+      - "api/target/reference/*.jar"
+      - "api/target/*.jar"
+  cache:
+    paths:
+      - .m2/repository
+    # do not reupload cache because the jar was installed in the local repository 
+    policy: pull

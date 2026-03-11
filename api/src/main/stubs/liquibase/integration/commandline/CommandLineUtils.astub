@@ -1,0 +1,6 @@
+package liquibase.integration.commandline;
+import org.jspecify.annotations.Nullable;
+
+public class CommandLineUtils {
+    public static void doDiffToChangeLog(String changeLogFile, Database referenceDatabase, Database targetDatabase, @Nullable String author, DiffOutputControl diffOutputControl, ObjectChangeFilter objectChangeFilter, @Nullable String snapshotTypes, @Nullable CompareControl.SchemaComparison @Nullable [] schemaComparisons, String runOnChangeTypes, String replaceIfExistsTypes);
+}

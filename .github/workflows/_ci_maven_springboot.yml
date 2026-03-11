@@ -1,0 +1,268 @@
+name: ~ ⚪ Spring Boot CI template
+
+on:
+  workflow_call:
+    inputs:
+      # TODO: ensure project-directory doesn't end with a slash
+      project-directory:
+        required: true
+        type: string
+      unique-artifact-name-prefix:
+        required: true
+        type: string
+      compose-service-name:
+        required: false
+        type: string
+      always-expose-test-report-artifacts:
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PROJECT_DIR: ${{ github.workspace }}/${{ inputs.project-directory }}
+  MAVEN_OPTS: "-Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --fail-at-end"
+
+jobs:
+
+#######################################################
+
+  compile:
+    name: Compilation
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+    timeout-minutes: 10
+    outputs:
+      run-vuln-check: ${{ steps.check-pom.outputs.changed }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0 # needed for change detection
+
+      - name: Check if vulnerability job must be run
+        id: check-pom
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/check-changes
+        with:
+          watched-items: |
+            ${{ inputs.project-directory }}/pom.xml
+
+      - name: Check for destructive queries
+        run:  bash "${{ github.workspace }}/.ci/scripts/maven_springboot/check_destructive_queries.sh"
+
+      - name: Setup Java
+        id: setup-java
+        uses: ./.github/actions/setup-java
+        with:
+          project-directory: ${{ inputs.project-directory }}
+
+      - name: Download all dependencies
+        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
+        run: ./mvnw $MAVEN_CLI_OPTS -DexcludeTransitive=true dependency:resolve-plugins dependency:go-offline de.qaware.maven:go-offline-maven-plugin:resolve-dependencies
+
+      - name: Run compilation
+        run:  ./mvnw $MAVEN_CLI_OPTS clean test-compile jar:jar spring-boot:repackage pmd:check modernizer:modernizer
+
+      - name: Upload compilation artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-compilation-artifact
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/target/generated-sources
+            ${{ env.PROJECT_DIR }}/target/generated-test-sources
+            ${{ env.PROJECT_DIR }}/target/classes
+            ${{ env.PROJECT_DIR }}/target/test-classes
+            ${{ env.PROJECT_DIR }}/target/maven-status
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-jar-artifact
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/target/*.jar
+
+#######################################################
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-24.04
+    needs: compile
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: "0" # Needed for git metadata embedded in jar
+
+      - name: Download compilation artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-compilation-artifact
+          path: ${{ env.PROJECT_DIR }}/target
+
+      - name: Setup Java
+        uses: ./.github/actions/setup-java
+        with:
+          project-directory: ${{ inputs.project-directory }}
+
+      - name: Run tests
+        # TODO: make sure this command reuse the compilation artifact instead of recompiling
+        run:  ./mvnw $MAVEN_CLI_OPTS verify -Dspotless.check.skip=true -Dpmd.skip=true -Dmodernizer.skip -Dmaven.gitcommitid.skip=true -DskipPitest -P '!nullness-checker'
+
+      - name: Upload test reports
+        if: ${{ failure() || inputs.always-expose-test-report-artifacts }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-tests-reports
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/target/reports/
+
+      - name: Add coverage to PR
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jacoco-report@94dfcf8dae9680be2cfa714ca37fb37790bd7663 # v1.6
+        continue-on-error: true
+        with:
+          paths: ${{ env.PROJECT_DIR }}/target/reports/jacoco/jacoco.xml
+          token: ${{ github.token }}
+          min-coverage-overall: "95"
+          min-coverage-changed-files: "95"
+
+#######################################################
+
+  mutation-tests:
+    name: Mutation Tests
+    runs-on: ubuntu-24.04
+    needs: compile
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Download compilation artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-compilation-artifact
+          path: ${{ env.PROJECT_DIR }}/target
+
+      - name: Setup Java
+        uses: ./.github/actions/setup-java
+        with:
+          project-directory: ${{ inputs.project-directory }}
+
+      - name: Run mutation tests
+        run:  ./mvnw $MAVEN_CLI_OPTS org.pitest:pitest-maven:mutationCoverage -Dmaven.gitcommitid.skip=true
+
+      - name: Upload mutation reports
+        if: ${{ failure() || inputs.always-expose-test-report-artifacts }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-mutation-reports
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/target/reports/
+
+#######################################################
+
+  dependency-security-check:
+    name: Vulnerability check for new dependencies
+    if: github.event_name == 'pull_request' && needs.compile.outputs.run-vuln-check == 'true'
+    runs-on: ubuntu-24.04
+    needs: compile
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: "0" # Needed the get this branch forking commit
+
+      - name: Setup Java
+        uses: ./.github/actions/setup-java
+        with:
+          project-directory: ${{ inputs.project-directory }}
+
+      - name: Download Dependency Check Database
+        id: download-dependency-check-database
+        uses: ./.github/actions/download-dependency-check-database
+        with:
+          database-directory: ${{ env.PROJECT_DIR }}/dependency-check-database
+          nvdApiKey: ${{ secrets.NVD_API_KEY }}
+          project-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Run vulnerability check on new dependencies
+        uses: ./.github/actions/incremental-dependency-check
+        with:
+          tool-version: ${{ steps.download-dependency-check-database.outputs.tool-version }}
+          database-directory: ${{ env.PROJECT_DIR }}/dependency-check-database
+          project-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Upload vulnerable new dependencies report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-vulnerable-dependencies-report
+          retention-days: "1"
+          path: |
+            ${{ env.PROJECT_DIR }}/dependency-check-report.html
+
+#######################################################
+
+  compose-health-and-startup:
+    name: Compose health + startup
+    runs-on: ubuntu-24.04
+    needs: compile
+    if: ${{ inputs.compose-service-name != '' }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Download jar artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-jar-artifact
+          path: ${{ env.PROJECT_DIR }}/target/
+
+      - name: Download compilation artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ inputs.unique-artifact-name-prefix }}-compilation-artifact
+          path: ${{ env.PROJECT_DIR }}/target
+
+      - name: Run container image healthcheck
+        uses: ./.github/actions/verify-container-image-health
+        with:
+          working-directory: ${{ github.workspace }}
+          service-name: ${{ inputs.compose-service-name }}
+
+      - name: Setup Java
+        uses: ./.github/actions/setup-java
+        with:
+          project-directory: ${{ inputs.project-directory }}
+
+      - name: Run localdev startup smoke
+        env:
+          MAVEN_CLI_OPTS: "--batch-mode --fail-at-end -Dspotless.check.skip=true -Dpmd.skip=true -Dmodernizer.skip -Dmaven.gitcommitid.skip=true -DskipPitest -P !nullness-checker"
+        run: bash "${{ github.workspace }}/.ci/scripts/maven_springboot/localdev_startup_smoke.sh" --verbose "${{ env.PROJECT_DIR }}"

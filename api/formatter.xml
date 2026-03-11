@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<profiles version="13">
+  <profile kind="CodeFormatterProfile" name="TheodoFormatter" version="13">
+
+    <!-- ============================================ -->
+    <!-- BASIC INDENTATION AND TAB SETTINGS          -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.tabulation.char" value="space"/>
+    <setting id="org.eclipse.jdt.core.formatter.tabulation.size" value="4"/>
+    <setting id="org.eclipse.jdt.core.formatter.indentation.size" value="4"/>
+
+    <!-- ============================================ -->
+    <!-- LINE LENGTH AND WRAPPING SETTINGS           -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.lineSplit" value="120"/>
+    <setting id="org.eclipse.jdt.core.formatter.comment.line_length" value="140"/>
+    <setting id="org.eclipse.jdt.core.formatter.join_wrapped_lines" value="false"/>
+
+    <!-- ============================================ -->
+    <!-- CONTINUATION INDENTATION                     -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.continuation_indentation" value="1"/>
+    <setting id="org.eclipse.jdt.core.formatter.continuation_indentation_for_array_initializer" value="1"/>
+
+    <!-- ============================================ -->
+    <!-- BLANK LINES                                  -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.blank_lines_before_new_chunk" value="1"/>
+
+    <!-- ============================================ -->
+    <!-- ALIGNMENT SETTINGS FOR WRAPPING             -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_arguments_in_method_invocation" value="80"/>
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_arguments_in_annotation" value="80"/>
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_expressions_in_array_initializer" value="16"/>
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_enum_constants" value="16"/>
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_type" value="16"/>
+    <setting id="org.eclipse.jdt.core.formatter.alignment_for_union_type_in_multicatch" value="16"/>
+
+    <!-- ============================================ -->
+    <!-- SPECIAL FORMATTING RULES                    -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.wrap_before_or_operator_multicatch" value="true"/>
+    <setting id="org.eclipse.jdt.core.formatter.text_block_indentation" value="3"/>
+
+    <!-- ============================================ -->
+    <!-- PARENTHESES POSITIONING                     -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_method_invocation" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_method_declaration" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_catch_clause" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_annotation" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_if_while_statement" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_enum_constant_declaration" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_record_declaration" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_for_statement" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_switch_statement" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_try_clause" value="separate_lines_if_wrapped"/>
+    <setting id="org.eclipse.jdt.core.formatter.parentheses_positions_in_lambda_declaration" value="separate_lines_if_wrapped"/>
+
+    <!-- ============================================ -->
+    <!-- ARRAY INITIALIZER SPACING                   -->
+    <!-- ============================================ -->
+    <setting id="org.eclipse.jdt.core.formatter.insert_space_before_opening_brace_in_array_initializer" value="insert"/>
+    <setting id="org.eclipse.jdt.core.formatter.insert_space_after_opening_brace_in_array_initializer" value="insert"/>
+    <setting id="org.eclipse.jdt.core.formatter.insert_space_before_closing_brace_in_array_initializer" value="insert"/>
+
+  </profile>
+</profiles>

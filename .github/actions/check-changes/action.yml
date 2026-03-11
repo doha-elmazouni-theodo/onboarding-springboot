@@ -1,0 +1,52 @@
+name: 'Detect Changes'
+description: 'detect changes in watched items and set outputs accordingly'
+
+inputs:
+  watched-items:
+    description: 'Globs to watch for changes'
+    required: true
+  base:
+    description: 'Base commit/ref to compare against (required if not in pull request context)'
+    required: false
+
+outputs:
+  changed:
+    description: 'Indicates if any of the watched items have changed'
+    value: ${{ steps.check-item-changes.outputs.changed }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if watched items have changed
+      id: check-item-changes
+      shell: bash
+      env:
+        WATCHED_ITEMS: ${{ inputs.watched-items }}
+        BASE_INPUT: ${{ inputs.base }}
+      run: |
+        echo "Checking for changes in watched items:"
+        echo "$WATCHED_ITEMS"
+        
+        # Determine base commit
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base=$(git merge-base origin/${{ github.base_ref }} HEAD)
+          echo "Using pull request base: $base"
+        else
+          if [ -z "$BASE_INPUT" ]; then
+            echo "Error: base input is required when not running in pull request context"
+            exit 1
+          fi
+          base="$BASE_INPUT"
+          echo "Using provided base: $base"
+        fi
+        
+        changed_files=$(git diff --name-only "$base" HEAD -- $WATCHED_ITEMS | sort -u)
+        
+        if [ -z "$changed_files" ]; then
+          echo "No changes detected in watched items."
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "Changes detected in the following files:"
+          echo "$changed_files"
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi

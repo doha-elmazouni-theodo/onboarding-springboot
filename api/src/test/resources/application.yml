@@ -1,0 +1,68 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  liquibase:
+    enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate.show_sql: false
+      hibernate.format_sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+
+  main:
+    banner-mode: off
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:zdtlD3JK56m6wTTgsNFhqzjqPaaaddingFor256bits=}
+    issuer: ${JWT_ISSUER:theodo}
+  https: false
+  access-token-duration-in-seconds: 600 # access token expires in 10 minutes
+  refresh-token-duration-in-seconds: 604800 # refresh token expires in 7 days
+  removeExpiredRefreshTokensCron: "0 0 0 * * ?" # cron expression for removing expired user sessions, set to run every midnight
+
+server:
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    org.springframework: ERROR
+    QueryCounter: DEBUG
+    DatabaseQueryLogger: DEBUG
+
+retrofit:
+  posts:
+    base-url: https://jsonplaceholder.typicode.com
+
+management:
+  server:
+    user: user01
+    password: password01
+  endpoints:
+    access.default: none
+    web:
+      base-path: "/actuatorz"
+      exposure:
+        include: "*"
+  endpoint:
+    info:
+      access: read-only
+  info:
+    defaults:
+      enabled: false
+    git:
+      enabled: true
+      mode: "full"
+    java:
+      enabled: true

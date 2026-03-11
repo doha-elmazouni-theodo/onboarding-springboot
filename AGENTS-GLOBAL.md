@@ -1,0 +1,57 @@
+## General Instructions
+- When reporting command execution, prefix the command itself with `[exitcode=<n> ✅]` or `[exitcode=<n> ❌]`.
+- When the user challenges or requests a correction and the reason is missing, unclear, or ambiguous from the prompt or prior context, ask for clarification before any further action.
+
+## General Coding Instructions
+- Prefer minimal diffs; avoid unnecessary refactors or extra tests.
+- Avoid adding code/fields early; keep each commit minimal to immediate needs.
+- Avoid extra blank lines unless formatter introduces them.
+- Run required build/test command before each commit or amend.
+- Commit names: outcome-focused, plain language, user benefit; avoid internal jargon.
+- Refactors behavior-preserving only; if semantics shift, treat as breaking and redesign.
+- Use intent‑revealing names for methods/functions to maximize intent clarity; avoid generic names; include domain/condition; e.g. :
+  - `isEqualsInvocation(Method method, Object... args)` instead of `isEquals(Object left, Object right)`
+  - `isAnnotationNameIn(AnnotationExpr annotation, ImmutableSet<String> names)` instead of `isNamed(AnnotationExpr annotation, ImmutableSet<String> names)`
+  - `findAncestorNodeOfType(Node node, Class<T> type)` instead of `findAncestor(Node node, Class<T> type)`
+- Prefer direct in-place logic over helper classes when the helper only adds indirection and no reuse or readability improvement.
+- Allow helper extraction for spec-like flow; ok without reuse when clarity wins.
+- Spec-like method flow; step-by-step intent first.
+- After any refactor, re-check all pending changes against AGENTS.md rules; repeat until no rule-driven adjustments remain.
+- After each change, verify affected methods are still used and keep minimal necessary visibility.
+- Avoid warning suppressions, but when necessary, keep them as narrow in scope as possible without excessive redundancy.
+- After each code change, run the impacted test class.
+- Name variables by value held, not usage.
+- Avoid one‑off private helpers unless readability gain.
+- Prefer single-use helper extraction in long methods when it removes single-use locals and shortens call site.
+- Be thorough; explore simplification paths for readability.
+- Keep methods short.
+- Convert static helpers that use instance state into instance methods to avoid parameter threading.
+- Prefer filter/map pipelines over loop+if when it simplifies flow
+- Prefer keeping files under 250 lines and functions under 25 lines.
+- Prefer returning new result collections over mutating caller-owned containers in non-private methods.
+- Avoid new helper methods that only wrap a single expression; inline locally unless the expression is hard to read or reused 3+ times.
+- Create local variables to keep calls on one line; avoid wrapped arguments.
+- Prefer early returns to flatten flow, unless they just guard a single trailing statement; then keep a simple if guard.
+- Prefer switch over chained conditionals for discrete-value branching when switch supports the type.
+- Apply YAGNI to helpers when readability neutral: if a helper is single‑use and intent is clear at the call site, inline and remove the helper.
+- Readability overrides YAGNI; keep helper if flow is clearer, even single‑use.
+- Method naming: verb‑leading by default; allow bare x() for pure getters; allow factory names like from.
+- Prefer result-returning APIs to avoid repeating work/errors; e.g., parse once and carry ParseResult for errors + AST.
+- Inline single-use locals for object creation when readable (e.g., `violations.add(ActPatternViolation.forTypeAtLine(...))`).
+- Always add missing tests to reproduce failures when a user challenges the implementation.
+- Compute derived data at point of use when source inputs already available; avoid early arg derivation and propagation.
+- Name methods to match behavior and side effects; avoid names implying validation or purity when reporting or mutating.
+
+## Global Tests Instructions
+- Test features over implementation details; remove redundant unit tests if needed.
+- Avoid production-logic reuse in tests; independent oracles to catch regressions.
+- Extract long asserted expressions into locals for readability.
+- Act block: explicit SUT call, one call only; move // Act to real call.
+- Assertions: start from Act result; extract SUT call into variable when assertion would hide it.
+- Comments: no Given/When/Then or Arrange/Assert; // Act only.
+- Spacing: always blank line after SUT call; blank line before // Act unless there's no prior instruction/comment.
+- In every test method, call the SUT directly in the Act step; never call a helper that hides or wraps the SUT.
+- Default to merged assertion chains; collapse post‑Act processing into a single assertion chain.
+- Avoid tests that use non-public surface or reflection; cover via public contracts.
+- Use helper assertions when they materially improve readability; otherwise keep assertions inline.
+- Prefer intent‑first helpers that return assert chains; encapsulate filtering/conversion in helper; keep call sites declarative even if helper signature is more complex.

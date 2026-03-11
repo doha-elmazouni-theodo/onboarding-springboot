@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<ruleset name="customruleset">
+    <description>
+        This ruleset is a start to discover PMD best practices
+    </description>
+    <!-- This rule set enforces best practices for java,
+		official PMD site recommends to start by fixing errors
+		related to this rule set -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+        <exclude name="LooseCoupling"/>
+        <exclude name="AbstractClassWithoutAbstractMethod"/>
+        <exclude name="ImplicitFunctionalInterface"/>
+    </rule>
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="TooManyStaticImports"/>
+        <exclude name="FieldNamingConventions"/>
+        <exclude name="LongVariable"/>
+        <exclude name="MethodNamingConventions"/>
+        <exclude name="TypeParameterNamingConventions"/>
+        <exclude name="UselessParentheses"/>
+        <exclude name="LambdaCanBeMethodReference"/>
+    </rule>
+    <rule ref="category/java/codestyle.xml/UseExplicitTypes">
+        <properties>
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::MethodDeclaration[.//Annotation[contains(@SimpleName, 'Test')]]" />
+        </properties>
+    </rule>
+    <rule ref="category/java/codestyle.xml/ShortVariable">
+        <properties>
+            <property name="minimum" value="2"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/codestyle.xml/ShortClassName">
+        <properties>
+            <property name="minimum" value="3"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml">
+        <exclude name="UseUtilityClass"/>
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="AbstractClassWithoutAnyMethod"/>
+    </rule>
+    <rule ref="pmd/custom/controller-rules.xml"/>
+    <rule ref="pmd/custom/generic-rules.xml"/>
+    <rule ref="pmd/custom/design-rules.xml"/>
+    <rule ref="pmd/custom/jpa-rules.xml"/>
+    <rule ref="pmd/custom/test-rules.xml"/>
+    <rule ref="category/java/design.xml/ExcessiveImports">
+        <properties>
+            <property name="minimum" value="40" />
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/TooManyMethods">
+      <properties>
+        <property name="violationSuppressXPath"
+          value="./ancestor-or-self::ClassDeclaration[ends-with(@SimpleName, 'Tests')]" />
+      </properties>
+    </rule>
+    <rule ref="category/java/design.xml/DataClass">
+      <properties>
+        <property name="violationSuppressXPath"
+          value="./ancestor-or-self::ClassDeclaration[@SimpleName = 'Infra']" />
+      </properties>
+    </rule>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod">
+      <properties>
+        <property name="violationSuppressXPath"
+          value="//MethodDeclaration[pmd-java:hasAnnotation('jakarta.annotation.PostConstruct')
+           or pmd-java:hasAnnotation('org.springframework.test.context.DynamicPropertySource')]" />
+      </properties>
+    </rule>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateField">
+      <properties>
+        <property name="ignoredFieldNames" value="DEFAULT_CTOR_COVERAGE_CLASS_NAME" />
+      </properties>
+    </rule>
+    <rule ref="category/java/design.xml/ImmutableField">
+      <properties>
+        <property name="violationSuppressXPath"
+          value="./ancestor-or-self::ClassDeclaration[ends-with(@SimpleName, 'Builder')]" />
+      </properties>
+    </rule>
+    <rule ref="category/java/design.xml/SingularField">
+      <properties>
+        <property name="violationSuppressXPath"
+          value="./ancestor-or-self::ClassDeclaration[ends-with(@SimpleName, 'Builder')]" />
+      </properties>
+    </rule>
+    <rule ref="category/java/design.xml/SignatureDeclareThrowsException" >
+      <properties>
+        <property name="IgnoreJUnitCompletely" value="true" />
+      </properties>
+    </rule>
+    <rule ref="category/java/bestpractices.xml/UnitTestShouldIncludeAssert">
+      <properties>
+        <property name="extraAssertMethodNames" value="andExpect,expectStatus,expectBody,expectAll,expectHeader,expectCookie,expectBodyList" />
+        <property name="violationSuppressXPath" value="./ancestor-or-self::ClassDeclaration[ends-with(@SimpleName, 'FlowApplicationTests')]" />
+      </properties>
+    </rule>
+    <rule ref="category/java/codestyle.xml/LinguisticNaming">
+        <properties>
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::ClassDeclaration[ends-with(@SimpleName, 'Tests')]" />
+        </properties>
+    </rule>
+
+</ruleset>

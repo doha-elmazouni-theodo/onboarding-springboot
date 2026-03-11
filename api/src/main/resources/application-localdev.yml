@@ -1,0 +1,18 @@
+# This config file is injected with the highest precedence when the app is running on developer machine.
+# running on developer machine = SpringBoot DevTools exists in classpath = app is run from IDE or mvn spring-boot:run
+# When running with java -jar, because SpringBoot DevTools are not packaged in the jar, this config file won't be injected
+# Check 'LocalDevPropertySourceInjecter' for implementation details
+
+spring:
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog-master.yaml
+
+  docker:
+    compose:
+      enabled: true
+      file: ../docker-compose.dependencies.yml
+
+springdoc:
+  api-docs:
+    enabled: true

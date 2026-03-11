@@ -1,0 +1,75 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/db}
+    driver-class-name: org.postgresql.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:user}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.show_sql: false
+      hibernate.format_sql: true
+
+  docker:
+    compose:
+      enabled: false
+
+  liquibase:
+    enabled: false
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:zdtlD3JK56m6wTTgsNFhqzjqPaaaddingFor256bits=}
+    issuer: ${JWT_ISSUER:theodo}
+  https: false
+  access-token-duration-in-seconds: 600 # access token expires in 10 minutes
+  refresh-token-duration-in-seconds: 604800 # refresh token expires in 7 days
+  removeExpiredRefreshTokensCron: "0 0 0 * * ?" # cron expression for removing expired user sessions, set to run every midnight
+
+springdoc:
+  api-docs:
+    enabled: ${ENABLE_SWAGGER:false}
+
+logging:
+  level:
+    root: INFO
+    org.springframework: ERROR
+    org.springframework.security.web.DefaultSecurityFilterChain: DEBUG
+    DatabaseQueryLogger: DEBUG
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+management:
+  server:
+    # curl -u "actuadmin:0+cpr_p6rlt0?0-NU09b9yxhWx@LT" http://localhost:8080/api/actuatorz/info
+    user: actuadmin
+    password: 0+cpr_p6rlt0?0-NU09b9yxhWx@LT
+  endpoints:
+    access.default: none
+    web:
+      base-path: "/actuatorz"
+      exposure:
+        include: "*"
+  endpoint:
+    info:
+      access: read-only
+  info:
+    defaults:
+      enabled: false
+    git:
+      enabled: true
+      mode: "full"
+    java:
+      enabled: true
+
+retrofit:
+  posts:
+    base-url: https://jsonplaceholder.typicode.com
+
+# TODO: custom error page with no sensible information: https://www.baeldung.com/spring-boot-custom-error-page
+# TODO: explore all common properties: https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html
